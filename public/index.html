@@ -1,0 +1,49 @@
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ปริศนาฟ้าแลบ LIVE</title><script src="/socket.io/socket.io.js"></script><style>
+:root{--bg:#081226;--panel:#112345;--line:#35527f;--cyan:#48e6ff;--gold:#ffd34e;--green:#48e2a3;--red:#ff6385}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#1b3975,#081226 60%);color:white;font-family:system-ui,sans-serif;min-height:100vh}main{max-width:960px;margin:auto;padding:20px 15px 45px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.logo{font-size:clamp(25px,5vw,40px);font-weight:1000;color:var(--gold)}.pill{border:1px solid #4de4ff77;color:var(--cyan);border-radius:99px;padding:7px 12px;font-size:12px;font-weight:800}.card{background:linear-gradient(145deg,#14294e,#0c1b35);border:1px solid var(--line);border-radius:20px;padding:20px;margin-top:16px;box-shadow:0 14px 40px #0005}.center{text-align:center}.muted{color:#aabbd8}.hidden{display:none!important}h1{font-size:clamp(25px,5vw,38px);margin:12px 0}h2{margin:0 0 12px}input{width:100%;padding:14px;border:1px solid #45618d;background:#0b1930;color:#fff;border-radius:12px;font-size:17px;margin:7px 0 13px}button{border:0;border-radius:12px;padding:13px 17px;font-weight:900;font-size:16px;cursor:pointer}.gold{background:linear-gradient(90deg,#ffe36b,#ffb52d);color:#18223a}.blue{background:#1c3b69;color:white;border:1px solid #5576a7}.red{background:#762b45;color:white}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.answer{min-height:90px;text-align:left;background:#1b345d;border:2px solid #3b5c8e;color:white;font-size:18px}.answer.sel{border-color:var(--gold);background:#51431f}.key{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:#294a77;color:var(--cyan);margin-right:8px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#09182e;border-radius:12px;padding:12px;text-align:center}.stat small{display:block;color:#9db0d0}.stat b{font-size:24px;color:var(--gold)}.track{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-top:14px}.step{background:#1d3458;padding:10px 0;border-radius:8px;text-align:center;color:#a8b9d7;font-weight:900}.step.active{background:var(--gold);color:#18223a}.step.done{background:#146153;color:#a0ffe0}.bar{height:12px;background:#263d61;border-radius:99px;overflow:hidden}.fill{height:100%;background:var(--cyan);width:0}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.playerlist{display:flex;gap:7px;flex-wrap:wrap}.person{background:#20395f;padding:7px 10px;border-radius:9px}.bigpin{font-size:clamp(35px,9vw,65px);letter-spacing:7px;color:var(--gold);font-weight:1000}.feedback{padding:15px;background:#09182e;border-radius:13px;margin-top:14px}.qtext{font-size:clamp(22px,4vw,32px);font-weight:900;line-height:1.4;margin:17px 0}.counts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.count{background:#0b1a32;padding:12px;border-radius:10px;text-align:center}.count b{display:block;font-size:26px;color:var(--gold)}@media(max-width:600px){.grid{grid-template-columns:1fr}.card{padding:15px}.track{gap:3px}.step{font-size:11px;padding:8px 0}.counts{grid-template-columns:repeat(2,1fr)}}
+</style></head><body><main><div class="head"><div class="logo">⚡ ปริศนาฟ้าแลบ LIVE</div><span class="pill">เล่นพร้อมกันทั้งห้อง</span></div>
+<section id="home" class="card center"><h1>พร้อมวัดใจกันทั้งห้องหรือยัง?</h1><p class="muted">พิธีกรสร้างห้อง • เพื่อนเข้าด้วย PIN • โหวตจากมือถือแบบเรียลไทม์</p><div class="grid"><button class="gold" id="make">สร้างห้องสำหรับพิธีกร</button><button class="blue" id="joinMode">เข้าร่วมห้องด้วย PIN</button></div></section>
+<section id="join" class="card hidden"><h2>เข้าร่วมห้อง</h2><label>รหัสห้อง PIN</label><input id="pinInput" inputmode="numeric" maxlength="6" placeholder="เช่น 482913"><label>ชื่อเล่น</label><input id="playerName" maxlength="20" placeholder="ใส่ชื่อของคุณ"><button class="gold" id="joinBtn">เข้าห้องเกม</button><p id="joinError" class="muted"></p></section>
+<section id="room" class="hidden">
+ <div class="card center"><div class="muted">รหัสเข้าห้อง</div><div class="bigpin" id="pinShow"></div><div class="muted">ให้เพื่อนเปิดเว็บไซต์นี้ แล้วกรอกรหัส PIN ด้านบน</div><div class="stats" style="margin-top:16px"><div class="stat"><small>ผู้เล่นในห้อง</small><b id="people">0</b></div><div class="stat"><small>อันดับของทั้งห้อง</small><b id="level">1 / 10</b></div><div class="stat"><small>โหวตแล้ว</small><b id="voted">0</b></div></div><div class="track" id="track"></div></div>
+ <div class="card"><div class="muted" id="phase">รอเริ่มเกม</div><div class="qtext" id="question">รอพิธีกรเริ่มเกม…</div><div id="answers" class="grid"></div><div id="timer" class="muted" style="margin-top:12px"></div><div id="feedback" class="feedback hidden"></div><div class="actions" id="hostActions"></div></div>
+ <div class="card"><h2>ผู้เล่นในห้อง</h2><div class="playerlist" id="players"></div></div>
+</section>
+</main><script>
+const socket=io();let role=null,pin=null,selected=null,state=null;
+const $=id=>document.getElementById(id);
+function show(id){["home","join","room"].forEach(x=>$(x).classList.toggle("hidden",x!==id))}
+function track(level){$("track").innerHTML=Array.from({length:10},(_,i)=>`<div class="step ${i+1<level?'done':i+1===level?'active':''}">${i+1}</div>`).join("")}
+$("make").onclick=()=>{socket.emit("host:create",{name:"พิธีกร"},res=>{if(!res.ok)return;role="host";pin=res.pin;show("room");$("pinShow").textContent=pin;});};
+$("joinMode").onclick=()=>show("join");
+$("joinBtn").onclick=()=>{const p=$("pinInput").value.trim(),n=$("playerName").value.trim();socket.emit("player:join",{pin:p,name:n},res=>{if(!res.ok){$("joinError").textContent=res.error;return;}role="player";pin=res.pin;show("room");$("pinShow").textContent=pin;});};
+function hostButton(label,event,cls="gold"){const b=document.createElement("button");b.className=cls;b.textContent=label;b.onclick=()=>socket.emit(event);$("hostActions").appendChild(b)}
+socket.on("state",s=>{
+ state=s;$("pinShow").textContent=s.pin;$("people").textContent=s.playerCount;$("level").textContent=s.level+" / 10";$("voted").textContent=s.totalVotes;
+ track(s.level);$("players").innerHTML=s.players.map(n=>`<span class="person">${escapeHtml(n)}</span>`).join("");
+ $("hostActions").innerHTML="";$("feedback").classList.add("hidden");$("answers").innerHTML="";
+ if(s.phase==="lobby"){
+  $("phase").textContent="ห้องพร้อมแล้ว";$("question").textContent="รอเพื่อนเข้าห้อง แล้วพิธีกรกดเริ่มเกม";if(role==="host")hostButton("เริ่มเกม","host:start");
+ }else if(s.phase==="question"){
+  $("phase").textContent=`คำถามที่ ${s.qNumber} · โหวตได้คนละ 1 คำตอบ`;$("question").textContent=s.question.q;
+  $("answers").innerHTML=s.question.a.map((a,i)=>`<button class="answer ${selected===i?'sel':''}" data-choice="${i}"><span class="key">${i+1}</span>${a}</button>`).join("");
+  document.querySelectorAll(".answer").forEach(b=>b.onclick=()=>{if(role!=="player")return;selected=+b.dataset.choice;socket.emit("player:vote",{choice:selected});document.querySelectorAll(".answer").forEach(x=>x.classList.toggle("sel",x===b));});
+  $("timer").textContent=`ส่งคำตอบแล้ว ${s.totalVotes} / ${s.playerCount} คน`;
+  if(role==="host")hostButton("ปิดโหวตและเฉลย","host:reveal");
+ }else if(s.phase==="tie"){
+  $("phase").textContent="ผลโหวตเสมอกัน";$("question").textContent="คะแนนเสมอ! ให้โหวตใหม่";showResultCounts(s.result.counts);
+  if(role==="host")hostButton("เปิดโหวตใหม่","host:revote");
+ }else if(s.phase==="result"){
+  $("phase").textContent="ประกาศผล";$("question").textContent=s.result.correct?"⚡ เสียงส่วนใหญ่ถูกต้อง!":"💥 เสียงส่วนใหญ่ผิด — ทุกคนกลับอันดับ 1";
+  const r=s.result;$("feedback").classList.remove("hidden");$("feedback").innerHTML=`<h2 style="color:${r.correct?'#48e2a3':'#ff6385'}">${r.correct?'ขึ้นอันดับพร้อมกัน!':'RESET! เริ่มใหม่พร้อมกัน'}</h2><p>เสียงส่วนใหญ่เลือกข้อ ${r.winner+1}</p><p>คำตอบที่ถูก: ข้อ ${r.correctAnswer+1}</p><p>${escapeHtml(r.why)}</p>`;showResultCounts(r.counts);
+  if(role==="host")hostButton(r.won?"ดูผลผู้ชนะ":"คำถามถัดไป","host:next");
+ }else if(s.phase==="finished"){
+  $("phase").textContent="จบเกม";$("question").textContent="🏆 ทั้งห้องพิชิตครบ 10 อันดับแล้ว!";$("feedback").classList.remove("hidden");$("feedback").textContent="ยินดีด้วย ทุกคนชนะไปด้วยกัน!";
+  if(role==="host")hostButton("เริ่มเกมใหม่","host:reset","blue");
+ }
+});
+function showResultCounts(counts){$("feedback").classList.remove("hidden");$("feedback").innerHTML=`<div class="counts">${counts.map((n,i)=>`<div class="count">ข้อ ${i+1}<b>${n}</b> เสียง</div>`).join("")}</div>`}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+socket.on("vote:accepted",()=>{$("timer").textContent="ส่งคำตอบแล้ว ✓ รอผลจากพิธีกร";});
+socket.on("room:closed",()=>{alert("ห้องเกมถูกปิดโดยพิธีกร");location.reload();});
+</script></body></html>
