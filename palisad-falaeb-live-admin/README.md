@@ -1,0 +1,43 @@
+# ปริศนาฟ้าแลบ LIVE v2 — ระบบจัดการคำถามและฐานข้อมูลถาวร
+
+## ฟีเจอร์
+- เกมสดหลายคนด้วย Socket.IO และรหัสห้อง PIN
+- ผู้เล่นโหวตได้คนละ 1 ครั้งต่อคำถาม
+- คำตอบเสียงข้างมากถูก: ทุกคนขึ้นอันดับ; ผิด: ทุกคนกลับอันดับ 1
+- เป้าหมาย 10 อันดับ
+- หน้าแอดมินที่ `/admin` สำหรับเพิ่ม/แก้ไข/ลบ/ค้นหาคำถามและหมวดหมู่
+- เก็บคลังคำถามใน PostgreSQL ไม่หายเมื่อ Render รีสตาร์ต
+- เมื่อฐานข้อมูลว่าง ระบบใส่คำถามตัวอย่าง 10 ข้อให้อัตโนมัติ
+
+## สำคัญ: ก่อน Deploy ต้องมี PostgreSQL
+ใช้ Supabase PostgreSQL (หรือ PostgreSQL ที่เข้าถึงจาก Render ได้)
+
+1. สร้างโปรเจกต์ Supabase ที่ https://supabase.com/
+2. ไปที่ Project Settings / Database หรือ Connect แล้วคัดลอก PostgreSQL connection string (URI) ของฐานข้อมูล
+3. ใช้ connection string ที่มี host, database, user, password และ port ครบถ้วน
+4. ใน Render > เว็บเซอร์วิส > Environment เพิ่ม:
+   - `DATABASE_URL` = connection string จาก Supabase
+   - `ADMIN_PASSWORD` = รหัสผ่านผู้ดูแลที่คุณตั้งเอง (ใช้รหัสที่เดายากและอย่าแชร์)
+5. Save Changes แล้ว Deploy latest commit
+
+หมายเหตุ: หากใช้ Supabase ให้ใช้ connection string ที่เหมาะกับ backend server (Session pooler หรือ Direct connection ตามการตั้งค่าเครือข่ายของโปรเจกต์) และคงพารามิเตอร์ SSL ตามที่ Supabase แสดง
+
+## ตั้งค่า Render
+- Build Command: `npm install`
+- Start Command: `npm start`
+- Node runtime: Node 20 หรือใหม่กว่า
+- Environment Variables: `DATABASE_URL`, `ADMIN_PASSWORD`
+- ไม่ต้องตั้ง Root Directory หาก package.json อยู่ที่ root
+
+## ใช้งาน
+- หน้าเกม: `/`
+- หน้าแอดมิน: `/admin`
+- เข้าหน้าแอดมินด้วย `ADMIN_PASSWORD`
+- เพิ่มคำถาม: โจทย์, ตัวเลือก 4 ข้อ, คำตอบถูก, หมวดหมู่, คำอธิบายเฉลย
+- เกมใหม่จะสุ่มลำดับคำถามจากคลัง ณ เวลาสร้างห้อง
+- การแก้ไขคลังคำถามไม่เปลี่ยนคำถามของห้องที่กำลังเล่นอยู่
+
+## ข้อควรทราบ
+- คลังคำถามเก็บถาวรใน PostgreSQL
+- ห้องเกมและสถานะโหวตยังอยู่ในหน่วยความจำของ Render และจะสิ้นสุดเมื่อเซิร์ฟเวอร์รีสตาร์ต
+- ตั้งรหัส ADMIN_PASSWORD ให้แข็งแรง และไม่ส่งให้ผู้เล่น
