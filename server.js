@@ -142,9 +142,36 @@ function roomState(r) {
   const counts = [0, 0, 0, 0]; for (const v of r.votes.values()) counts[v]++;
   return { pin:r.pin, phase:r.phase, level:r.level, qNumber:r.qNumber, players:[...r.players.values()],
     playerCount:r.players.size, question:q ? { q:q.question, a:q.options } : null,
+    endsAt:r.phase === "question" ? r.endsAt : null,
     counts, totalVotes:r.votes.size, result:r.result };
 }
 function broadcast(r) { io.to(r.pin).emit("state", roomState(r)); }
+function resolveQuestion(r) {
+  if (!r || r.phase !== "question") return;
+  if (r.timer) clearTimeout(r.timer);
+  r.timer = null;
+  r.endsAt = null;
+  const q=r.questions[r.qIndex], counts=[0,0,0,0];
+  for(const v of r.votes.values()) counts[v]++;
+  const max=Math.max(...counts), winners=counts.map((v,i)=>v===max?i:-1).filter(i=>i>=0);
+  if(max===0||winners.length>1){
+    r.result={tie:true,winners,counts,message:max===0?"หมดเวลาและไม่มีคนโหวต":"คะแนนเสมอกัน! ให้โหวตใหม่"};
+    r.phase="tie";
+  } else {
+    const winner=winners[0],correct=winner===q.correct_index;
+    if(correct) r.level=Math.min(10,r.level+1); else r.level=1;
+    r.result={tie:false,winner,correct,correctAnswer:q.correct_index,why:q.explanation,counts,level:r.level,won:r.level===10&&correct};
+    r.phase="result";
+  }
+  broadcast(r);
+}
+function startQuestion(r) {
+  if (r.timer) clearTimeout(r.timer);
+  r.phase="question"; r.votes.clear(); r.result=null;
+  r.endsAt=Date.now()+60000;
+  r.timer=setTimeout(()=>resolveQuestion(r),60000);
+  broadcast(r);
+}
 
 io.on("connection", socket => {
   socket.on("host:create", async (_data, cb) => {
@@ -152,7 +179,7 @@ io.on("connection", socket => {
       const { rows } = await pool.query("SELECT id, question, options, correct_index, explanation, category FROM questions ORDER BY random()");
       if (!rows.length) return cb({ ok:false, error:"ยังไม่มีคำถาม กรุณาเพิ่มคำถามในหน้าแอดมินก่อน" });
       const pin = makePin();
-      const r = { pin, host:socket.id, players:new Map(), votes:new Map(), phase:"lobby", level:1, qIndex:0, qNumber:1, result:null, questions:rows };
+      const r = { pin, host:socket.id, players:new Map(), votes:new Map(), phase:"lobby", level:1, qIndex:0, qNumber:1, result:null, questions:rows, endsAt:null, timer:null };
       rooms.set(pin,r); socket.join(pin); socket.data.pin=pin; socket.data.role="host";
       cb({ ok:true, pin }); broadcast(r);
     } catch (e) { console.error(e); cb({ ok:false, error:"โหลดคำถามไม่สำเร็จ กรุณาลองใหม่" }); }
@@ -166,7 +193,7 @@ io.on("connection", socket => {
   });
   socket.on("host:start", () => {
     const r=rooms.get(socket.data.pin); if(!r||r.host!==socket.id||r.phase!=="lobby")return;
-    r.phase="question"; r.votes.clear(); r.result=null; broadcast(r);
+    startQuestion(r);
   });
   socket.on("player:vote", ({choice}) => {
     const r=rooms.get(socket.data.pin); if(!r||socket.data.role!=="player"||r.phase!=="question")return;
@@ -175,36 +202,28 @@ io.on("connection", socket => {
   });
   socket.on("host:reveal", () => {
     const r=rooms.get(socket.data.pin); if(!r||r.host!==socket.id||r.phase!=="question")return;
-    const q=r.questions[r.qIndex], counts=[0,0,0,0]; for(const v of r.votes.values())counts[v]++;
-    const max=Math.max(...counts), winners=counts.map((v,i)=>v===max?i:-1).filter(i=>i>=0);
-    if(max===0||winners.length>1){r.result={tie:true,winners,counts,message:max===0?"ยังไม่มีคนโหวต":"คะแนนเสมอกัน! ให้โหวตใหม่"};r.phase="tie";}
-    else {
-      const winner=winners[0],correct=winner===q.correct_index;
-      if(correct)r.level=Math.min(10,r.level+1);else r.level=1;
-      r.result={tie:false,winner,correct,correctAnswer:q.correct_index,why:q.explanation,counts,level:r.level,won:r.level===10&&correct};
-      r.phase="result";
-    }
-    broadcast(r);
+    resolveQuestion(r);
   });
   socket.on("host:revote", () => {
     const r=rooms.get(socket.data.pin); if(!r||r.host!==socket.id||r.phase!=="tie")return;
-    r.votes.clear();r.result=null;r.phase="question";broadcast(r);
+    startQuestion(r);
   });
   socket.on("host:next", () => {
     const r=rooms.get(socket.data.pin);if(!r||r.host!==socket.id||r.phase!=="result")return;
     if(r.result?.won){r.phase="finished";broadcast(r);return;}
-    r.qIndex++;r.qNumber++;r.votes.clear();r.result=null;
+    r.qIndex++;r.qNumber++;
     if(r.qIndex>=r.questions.length)r.qIndex=0;
-    r.phase="question";broadcast(r);
+    startQuestion(r);
   });
   socket.on("host:reset", () => {
     const r=rooms.get(socket.data.pin);if(!r||r.host!==socket.id)return;
-    r.phase="lobby";r.level=1;r.qIndex=0;r.qNumber=1;r.votes.clear();r.result=null;broadcast(r);
+    if(r.timer) clearTimeout(r.timer);
+    r.timer=null;r.endsAt=null;r.phase="lobby";r.level=1;r.qIndex=0;r.qNumber=1;r.votes.clear();r.result=null;broadcast(r);
   });
   socket.on("disconnect", () => {
     const r=rooms.get(socket.data.pin);if(!r)return;
     if(socket.data.role==="player")r.players.delete(socket.id);
-    if(r.host===socket.id){io.to(r.pin).emit("room:closed");rooms.delete(r.pin);return;}
+    if(r.host===socket.id){if(r.timer)clearTimeout(r.timer);io.to(r.pin).emit("room:closed");rooms.delete(r.pin);return;}
     broadcast(r);
   });
 });
